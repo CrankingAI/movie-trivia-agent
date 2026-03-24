@@ -1,0 +1,38 @@
+## .NET build artifacts
+bin/
+obj/
+artifacts/
+publish/
+TestResults/
+
+## Visual Studio and Rider
+.vs/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+.idea/
+
+## VS Code
+.vscode/
+
+## Local configuration and secrets
+local.settings.json
+.env
+.env.*
+!.env.example
+!.env.sample
+
+## Azure local development
+.azurite/
+
+## Generated infrastructure artifacts
+infra/main.json
+
+## Logs and temporary files
+*.log
+
+## OS files
+.DS_Store
+Thumbs.db

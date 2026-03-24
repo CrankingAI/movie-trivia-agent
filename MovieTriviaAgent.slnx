@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/aspire/">
+    <Project Path="aspire/MovieTriviaAgent.AppHost/MovieTriviaAgent.AppHost.csproj" />
+    <Project Path="aspire/MovieTriviaAgent.ServiceDefaults/MovieTriviaAgent.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/MovieTriviaAgent.Agent/MovieTriviaAgent.Agent.csproj" />
+    <Project Path="src/MovieTriviaAgent.Core/MovieTriviaAgent.Core.csproj" />
+    <Project Path="src/MovieTriviaAgent.Functions/MovieTriviaAgent.Functions.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MovieTriviaAgent.Eval/MovieTriviaAgent.Eval.csproj" />
+    <Project Path="tests/MovieTriviaAgent.Tests/MovieTriviaAgent.Tests.csproj" />
+  </Folder>
+</Solution>
