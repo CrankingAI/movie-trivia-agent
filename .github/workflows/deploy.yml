@@ -34,6 +34,7 @@ jobs:
         with:
           scope: subscription
           region: ${{ env.AZURE_LOCATION }}
+          deploymentName: movie-trivia-agent-${{ github.run_id }}
           template: infra/main.bicep
           parameters: infra/main.bicepparam
 

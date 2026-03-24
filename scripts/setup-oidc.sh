@@ -37,12 +37,12 @@ az ad sp create --id "$CLIENT_ID" --output none 2>/dev/null || true
 OBJECT_ID="$(az ad sp show --id "$CLIENT_ID" --query id -o tsv)"
 echo "    Service principal object ID: ${OBJECT_ID}"
 
-# ── 3. Assign Contributor role on the resource group ───────────────────────
-echo "==> Assigning Contributor role on ${RESOURCE_GROUP}..."
+# ── 3. Assign Contributor role on the subscription ─────────────────────────
+echo "==> Assigning Contributor role on subscription ${SUBSCRIPTION_ID}..."
 az role assignment create \
   --assignee "$CLIENT_ID" \
   --role Contributor \
-  --scope "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}" \
+  --scope "/subscriptions/${SUBSCRIPTION_ID}" \
   --output none
 echo "    Role assignment complete."
 
