@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.*" />
     <PackageReference Include="Azure.AI.OpenAI" Version="2.*" />
     <PackageReference Include="OpenTelemetry.Api" Version="1.*" />
+    <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.0.0-rc4" />
   </ItemGroup>
 
   <ItemGroup>

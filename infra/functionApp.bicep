@@ -22,6 +22,9 @@ param foundryEndpoint string
 @secure()
 param foundryKey string
 
+@description('Azure AI Foundry model deployment name.')
+param foundryModelId string = 'gpt-5.4'
+
 // ---------------------------------------------------------------------------
 // Naming
 // ---------------------------------------------------------------------------
@@ -83,6 +86,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'Foundry__ApiKey'
           value: foundryKey
+        }
+        {
+          name: 'Foundry__ModelId'
+          value: foundryModelId
         }
       ]
     }

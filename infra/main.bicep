@@ -67,6 +67,7 @@ module functionApp 'functionApp.bicep' = {
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     foundryEndpoint: foundry.outputs.foundryEndpoint
     foundryKey: foundry.outputs.foundryKey
+    foundryModelId: foundry.outputs.modelDeploymentName
   }
 }
 

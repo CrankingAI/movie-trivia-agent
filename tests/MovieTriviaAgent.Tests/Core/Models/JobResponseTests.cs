@@ -21,4 +21,47 @@ public class JobResponseTests
         Assert.Equal(95, deserialized.Score);
         Assert.Equal("A masterpiece.", deserialized.Reasoning);
     }
+
+    [Fact]
+    public void JobResponse_WithSubScores_RoundTrips_ThroughJson()
+    {
+        var response = new JobResponse
+        {
+            Score = 82,
+            Reasoning = "Weighted score",
+            SubScores = new SubScores
+            {
+                Popularity = 90,
+                ArtisticValue = 85,
+                Iconicness = 70,
+            },
+            Pros = ["Great acting", "Iconic scenes"],
+            Cons = ["Slow pacing"],
+            Conflicts = ["Critics vs audience divide"],
+        };
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+        var deserialized = JsonSerializer.Deserialize<JobResponse>(json, JsonOptions);
+
+        Assert.NotNull(deserialized);
+        Assert.Equal(82, deserialized.Score);
+        Assert.NotNull(deserialized.SubScores);
+        Assert.Equal(90, deserialized.SubScores.Popularity);
+        Assert.Equal(85, deserialized.SubScores.ArtisticValue);
+        Assert.Equal(70, deserialized.SubScores.Iconicness);
+        Assert.Equal(["Great acting", "Iconic scenes"], deserialized.Pros);
+        Assert.Equal(["Slow pacing"], deserialized.Cons);
+        Assert.Equal(["Critics vs audience divide"], deserialized.Conflicts);
+    }
+
+    [Fact]
+    public void JobResponse_NullableFields_DefaultToNull()
+    {
+        var response = new JobResponse { Score = 50, Reasoning = "Basic" };
+
+        Assert.Null(response.SubScores);
+        Assert.Null(response.Pros);
+        Assert.Null(response.Cons);
+        Assert.Null(response.Conflicts);
+    }
 }

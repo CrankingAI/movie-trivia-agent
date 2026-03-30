@@ -7,6 +7,7 @@ using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Azure.Monitor.OpenTelemetry.Exporter;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -57,11 +58,16 @@ public static class Extensions
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    .AddMeter("Experimental.Microsoft.Extensions.AI");
             })
             .WithTracing(tracing =>
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
+                    .AddSource("Experimental.Microsoft.Extensions.AI")
+                    .AddSource("MovieTriviaAgent.Agent")
+                    .AddSource("Microsoft.Agents.AI.Workflows")
+                    .AddSource("Azure.*")
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>
@@ -80,19 +86,43 @@ public static class Extensions
 
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
+        // Aspire OTLP: sends traces, metrics, and logs to the Aspire dashboard.
+        // Uses signal-specific AddOtlpExporter (not cross-cutting UseOtlpExporter)
+        // so it can coexist with the named "file" exporter below.
         var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
 
         if (useOtlpExporter)
         {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(tracing => tracing.AddOtlpExporter())
+                .WithMetrics(metrics => metrics.AddOtlpExporter());
         }
 
-        // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
-        //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
-        //{
-        //    builder.Services.AddOpenTelemetry()
-        //       .UseAzureMonitor();
-        //}
+        // Azure Monitor: sends traces, metrics, and logs to Application Insights.
+        // Activates when APPLICATIONINSIGHTS_CONNECTION_STRING is set, allowing dual
+        // export alongside OTLP (e.g. Aspire dashboard + Azure Monitor simultaneously).
+        var appInsightsConnStr = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+        if (!string.IsNullOrEmpty(appInsightsConnStr))
+        {
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(tracing => tracing.AddAzureMonitorTraceExporter(o => o.ConnectionString = appInsightsConnStr))
+                .WithMetrics(metrics => metrics.AddAzureMonitorMetricExporter(o => o.ConnectionString = appInsightsConnStr));
+
+            builder.Logging.AddOpenTelemetry(logging =>
+                logging.AddAzureMonitorLogExporter(o => o.ConnectionString = appInsightsConnStr));
+        }
+
+        // File export: sends OTel to a local collector that writes OTLP JSON to disk.
+        // Activates when OTEL_FILE_EXPORTER_ENDPOINT is set (injected by Aspire AppHost).
+        // Output: ./otel-export/traces.jsonl, metrics.jsonl
+        var fileExporterEndpoint = builder.Configuration["OTEL_FILE_EXPORTER_ENDPOINT"];
+        if (!string.IsNullOrEmpty(fileExporterEndpoint))
+        {
+            var fileEndpointUri = new Uri(fileExporterEndpoint);
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(tracing => tracing.AddOtlpExporter("file", o => o.Endpoint = fileEndpointUri))
+                .WithMetrics(metrics => metrics.AddOtlpExporter("file", o => o.Endpoint = fileEndpointUri));
+        }
 
         return builder;
     }

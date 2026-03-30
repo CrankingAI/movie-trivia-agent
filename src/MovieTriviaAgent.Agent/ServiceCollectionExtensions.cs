@@ -5,6 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MovieTriviaAgent.Agent;
 
+public class AgentOptions
+{
+    public string ModelId { get; set; } = "gpt-5.4";
+}
+
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddMovieGreatnessAgent(
@@ -24,6 +29,7 @@ public static class ServiceCollectionExtensions
             .UseFunctionInvocation()
             .Build(sp));
 
+        services.AddSingleton(new AgentOptions { ModelId = modelId });
         services.AddSingleton<MovieGreatnessAgent>();
 
         return services;

@@ -8,6 +8,8 @@ using MovieTriviaAgent.Core.Services;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 var storageConnectionString = builder.Configuration["AzureWebJobsStorage"]
     ?? "UseDevelopmentStorage=true";
 
@@ -23,9 +25,11 @@ var foundryEndpoint = builder.Configuration["Foundry:Endpoint"]
     ?? throw new InvalidOperationException("Foundry:Endpoint configuration is required");
 var foundryApiKey = builder.Configuration["Foundry:ApiKey"]
     ?? throw new InvalidOperationException("Foundry:ApiKey configuration is required");
+var foundryModelId = builder.Configuration["Foundry:ModelId"] ?? "gpt-5.4";
 
 builder.Services.AddMovieGreatnessAgent(
     new Uri(foundryEndpoint),
-    foundryApiKey);
+    foundryApiKey,
+    foundryModelId);
 
 builder.Build().Run();

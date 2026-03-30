@@ -13,15 +13,13 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.*" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.*" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.*" />
-    <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.*" />
-    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.*" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.*" />
+
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MovieTriviaAgent.Agent\MovieTriviaAgent.Agent.csproj" />
     <ProjectReference Include="..\MovieTriviaAgent.Core\MovieTriviaAgent.Core.csproj" />
+    <ProjectReference Include="..\..\aspire\MovieTriviaAgent.ServiceDefaults\MovieTriviaAgent.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

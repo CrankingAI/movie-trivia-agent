@@ -12,11 +12,23 @@ set -euo pipefail
 MOVIE="${1:-The Godfather}"
 PORT="${2:-}"
 
+get_probe_status() {
+  local port="$1"
+  curl -s -o /dev/null -w '%{http_code}' "http://localhost:${port}/api/jobs/probe" 2>/dev/null || true
+}
+
 # Auto-detect port from the running Functions process if not provided
 if [[ -z "$PORT" ]]; then
-  CANDIDATES="$(lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null | grep '^func ' | grep -oE ':\d+' | tr -d ':' | sort -u)" || true
+  # Prefer the public listener port that the Functions host exposes, not its
+  # loopback-only internal coordination ports.
+  CANDIDATES="$(lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null | awk '/^func / && $9 ~ /^\*:/ { sub(/^\*:/, "", $9); print $9 }' | sort -u)" || true
+
+  if [[ -z "$CANDIDATES" ]]; then
+    CANDIDATES="$(lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null | grep '^func ' | grep -oE ':\d+' | tr -d ':' | sort -u)" || true
+  fi
+
   for P in $CANDIDATES; do
-    if curl -s -o /dev/null -w '%{http_code}' "http://localhost:${P}/api/jobs/probe" 2>/dev/null | grep -qE '^(404|200)'; then
+    if [[ "$(get_probe_status "$P")" == "404" ]]; then
       PORT="$P"
       break
     fi

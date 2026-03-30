@@ -1,14 +1,18 @@
+using System.Diagnostics;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using MovieTriviaAgent.Agent;
 using MovieTriviaAgent.Core;
 using MovieTriviaAgent.Core.Models;
+using MovieTriviaAgent.Core.Observability;
 using MovieTriviaAgent.Core.Services;
 
 namespace MovieTriviaAgent.Functions.Functions;
 
 public class RunJobFunction
 {
+    private static readonly ActivitySource ActivitySourceInstance = new("MovieTriviaAgent.Agent");
+
     private readonly JobBlobService _blobService;
     private readonly MovieGreatnessAgent _agent;
     private readonly ILogger<RunJobFunction> _logger;
@@ -26,8 +30,14 @@ public class RunJobFunction
     [Function("RunJob")]
     public async Task Run(
         [QueueTrigger("job-requests", Connection = "AzureWebJobsStorage")] string jobId,
+        FunctionContext executionContext,
         CancellationToken ct)
     {
+        // Azure Functions isolated worker doesn't flow Activity.Current from the host.
+        // Extract the host's W3C trace context so our activity nests under the host span.
+        using var activity = StartActivityFromContext(executionContext, "RunJob", ActivityKind.Consumer);
+        activity?.SetTag(TelemetryTags.JobId, jobId);
+
         _logger.LogInformation("Processing job {JobId}", jobId);
 
         var request = await _blobService.ReadRequestAsync(jobId, ct);
@@ -43,6 +53,8 @@ public class RunJobFunction
             _logger.LogError("Job {JobId}: meta.json not found", jobId);
             return;
         }
+
+        activity?.SetTag(TelemetryTags.MovieRequested, request.Topic);
 
         meta = meta with
         {
@@ -63,11 +75,25 @@ public class RunJobFunction
             };
             await _blobService.WriteMetaAsync(jobId, meta, ct);
 
-            _logger.LogInformation("Job {JobId} completed. Score: {Score}", jobId, result.Score);
+            activity?.SetTag(TelemetryTags.JobStatus, "Completed");
+            activity?.SetTag(TelemetryTags.MovieRequested, result.RequestedMovie);
+            activity?.SetTag(TelemetryTags.MovieRated, result.RatedMovie);
+            activity?.SetTag(TelemetryTags.MovieScore, result.Score);
+
+            _logger.LogInformation(
+                "Job {JobId} completed for requested movie {RequestedMovie} and rated movie {RatedMovie}. Score: {Score}",
+                jobId,
+                result.RequestedMovie,
+                result.RatedMovie,
+                result.Score);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Job {JobId} failed", jobId);
+            _logger.LogError(ex, "Job {JobId} failed for requested movie {RequestedMovie}", jobId, request.Topic);
+
+            activity?.SetTag(TelemetryTags.JobStatus, "Failed");
+            activity?.SetTag(TelemetryTags.MovieRequested, request.Topic);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
 
             meta = meta with
             {
@@ -77,5 +103,17 @@ public class RunJobFunction
             };
             await _blobService.WriteMetaAsync(jobId, meta, ct);
         }
+    }
+
+    private static Activity? StartActivityFromContext(
+        FunctionContext context, string name, ActivityKind kind)
+    {
+        var traceParent = context.TraceContext.TraceParent;
+        if (!string.IsNullOrEmpty(traceParent))
+        {
+            var parentContext = ActivityContext.Parse(traceParent, context.TraceContext.TraceState);
+            return ActivitySourceInstance.StartActivity(name, kind, parentContext);
+        }
+        return ActivitySourceInstance.StartActivity(name, kind);
     }
 }

@@ -1,15 +1,19 @@
+using System.Diagnostics;
 using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using MovieTriviaAgent.Core;
 using MovieTriviaAgent.Core.Models;
+using MovieTriviaAgent.Core.Observability;
 using MovieTriviaAgent.Core.Services;
 
 namespace MovieTriviaAgent.Functions.Functions;
 
 public class SubmitJobFunction
 {
+    private static readonly ActivitySource ActivitySourceInstance = new("MovieTriviaAgent.Agent");
+
     private readonly JobBlobService _blobService;
     private readonly JobQueueService _queueService;
     private readonly ILogger<SubmitJobFunction> _logger;
@@ -27,8 +31,13 @@ public class SubmitJobFunction
     [Function("SubmitJob")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "jobs")] HttpRequestData req,
+        FunctionContext executionContext,
         CancellationToken ct)
     {
+        // Azure Functions isolated worker doesn't flow Activity.Current from the host.
+        // Extract the host's W3C trace context so our activity nests under the host span.
+        using var activity = StartActivityFromContext(executionContext, "SubmitJob", ActivityKind.Internal);
+
         var jobRequest = await req.ReadFromJsonAsync<JobRequest>(ct);
         if (jobRequest is null || string.IsNullOrWhiteSpace(jobRequest.Topic))
         {
@@ -38,6 +47,8 @@ public class SubmitJobFunction
         }
 
         var jobId = Guid.NewGuid().ToString("N");
+        activity?.SetTag(TelemetryTags.JobId, jobId);
+        activity?.SetTag(TelemetryTags.MovieRequested, jobRequest.Topic);
 
         await _blobService.EnsureContainerExistsAsync(ct);
         await _blobService.WriteRequestAsync(jobId, jobRequest, ct);
@@ -54,10 +65,25 @@ public class SubmitJobFunction
         await _queueService.EnsureQueueExistsAsync(ct);
         await _queueService.EnqueueJobAsync(jobId, ct);
 
-        _logger.LogInformation("Job {JobId} submitted for topic: {Topic}", jobId, jobRequest.Topic);
+        _logger.LogInformation(
+            "Job {JobId} submitted for requested movie {RequestedMovie}",
+            jobId,
+            jobRequest.Topic);
 
         var response = req.CreateResponse(HttpStatusCode.Accepted);
         await response.WriteAsJsonAsync(new { jobId }, ct);
         return response;
+    }
+
+    private static Activity? StartActivityFromContext(
+        FunctionContext context, string name, ActivityKind kind)
+    {
+        var traceParent = context.TraceContext.TraceParent;
+        if (!string.IsNullOrEmpty(traceParent))
+        {
+            var parentContext = ActivityContext.Parse(traceParent, context.TraceContext.TraceState);
+            return ActivitySourceInstance.StartActivity(name, kind, parentContext);
+        }
+        return ActivitySourceInstance.StartActivity(name, kind);
     }
 }

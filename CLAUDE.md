@@ -9,7 +9,7 @@ A general-purpose pattern for running AI agents as async jobs on Azure. The repo
 ## Tech Stack
 
 - **.NET 10**, C#, isolated worker model
-- **Microsoft.Extensions.AI Agent Framework** — WorkflowBuilder with tool executors
+- **Microsoft.Extensions.AI Agent Framework** — WorkflowBuilder with fan-out/fan-in executors
 - **Microsoft Foundry** back-end for LLMs, model: **gpt-5.4**
 - **Azure Functions** (Linux, App Service plan with AlwaysOn)
 - **Azure Storage** — Blob Storage for job persistence, Storage Queue for job dispatch
@@ -44,7 +44,7 @@ Simple `topic` field for now — designed to be expanded later.
 MovieTriviaAgent.sln
 src/
   MovieTriviaAgent.Functions/        # Azure Functions isolated worker (HTTP + queue triggers)
-  MovieTriviaAgent.Agent/            # WorkflowBuilder pipeline + tool executors
+  MovieTriviaAgent.Agent/            # WorkflowBuilder pipeline + fan-out/fan-in executors
   MovieTriviaAgent.Core/             # Shared models, blob service, queue service, job lifecycle
 tests/
   MovieTriviaAgent.Tests/            # xUnit unit tests (Core, Agent, Functions)
